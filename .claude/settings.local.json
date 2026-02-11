@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del \"C:\\\\Users\\\\jagad\\\\source\\\\repos\\\\react-chatbot-unr-theme\\\\.next\\\\dev\\\\lock\")",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /PID 44836 /F\")",
+      "Bash(cmd /c \"taskkill /F /PID 44836\")",
+      "Bash(cmd /c \"taskkill /F /T /PID 44836\")",
+      "Bash(cmd /c \"wmic process where ProcessId=44836 get Name,ProcessId,ParentProcessId\")",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run dev:*)",
+      "Bash(timeout:*)",
+      "Bash(dir:*)"
+    ]
+  }
+}
