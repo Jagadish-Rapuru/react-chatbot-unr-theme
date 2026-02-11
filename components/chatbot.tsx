@@ -74,9 +74,36 @@ function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
 
+function parseMarkdownLine(line: string, lineKey: number): React.ReactNode {
+  const trimmed = line.trim()
+
+  // Heading: ### as main heading
+  const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/)
+  if (headingMatch) {
+    const level = headingMatch[1].length
+    const headingText = headingMatch[2]
+    if (level <= 3) {
+      return (
+        <span key={`h-${lineKey}`} className="block text-[15px] font-bold text-[#003366] mt-2 mb-0.5">
+          {parseMarkdownText(headingText)}
+        </span>
+      )
+    }
+    return (
+      <span key={`h-${lineKey}`} className="block text-sm font-semibold text-[#1E293B] mt-1.5 mb-0.5">
+        {parseMarkdownText(headingText)}
+      </span>
+    )
+  }
+
+  // Regular line with inline markdown (bold, links)
+  return <span key={`line-${lineKey}`}>{parseMarkdownText(trimmed)}</span>
+}
+
 function parseMarkdownText(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
-  const combinedRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`/g
+  // Combined regex for links and bold text
+  const combinedRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*/g
   let lastIndex = 0
   let match
   let keyIndex = 0
@@ -87,7 +114,7 @@ function parseMarkdownText(text: string): React.ReactNode[] {
     }
 
     if (match[1] && match[2]) {
-      // Link: [text](url)
+      // It's a link [text](url)
       parts.push(
         <a
           key={`link-${keyIndex++}`}
@@ -101,21 +128,11 @@ function parseMarkdownText(text: string): React.ReactNode[] {
         </a>
       )
     } else if (match[3]) {
-      // Bold: **text** — rendered as a sub-heading
+      // It's bold text **text** — sub-heading style
       parts.push(
-        <strong key={`bold-${keyIndex++}`} className="font-bold text-[#0A1628]">
+        <strong key={`bold-${keyIndex++}`} className="font-semibold text-[#0A1628]">
           {match[3]}
         </strong>
-      )
-    } else if (match[4]) {
-      // Inline code: `code`
-      parts.push(
-        <code
-          key={`code-${keyIndex++}`}
-          className="bg-[#F1F5F9] text-[#003366] text-xs px-1.5 py-0.5 rounded font-mono border border-[#E2E8F0]"
-        >
-          {match[4]}
-        </code>
       )
     }
     lastIndex = match.index + match[0].length
@@ -126,194 +143,6 @@ function parseMarkdownText(text: string): React.ReactNode[] {
   }
 
   return parts.length > 0 ? parts : [text]
-}
-
-interface OrderedItem {
-  text: string
-  subItems: string[]
-}
-
-function formatMarkdownBlock(text: string): React.ReactNode[] {
-  const lines = text.split("\n")
-  const elements: React.ReactNode[] = []
-  let unorderedListItems: string[] = []
-  let orderedItems: OrderedItem[] = []
-  let inUnorderedList = false
-  let inOrderedList = false
-  let inCodeBlock = false
-  let codeBlockLines: string[] = []
-
-  const flushUnorderedList = () => {
-    if (unorderedListItems.length > 0) {
-      elements.push(
-        <ul
-          key={`ul-${elements.length}`}
-          className="my-2 list-disc space-y-1.5 pl-5 text-[#1E293B]"
-        >
-          {unorderedListItems.map((item, i) => (
-            <li key={i} className="leading-relaxed">
-              {parseMarkdownText(item)}
-            </li>
-          ))}
-        </ul>
-      )
-      unorderedListItems = []
-      inUnorderedList = false
-    }
-  }
-
-  const flushOrderedList = () => {
-    if (orderedItems.length > 0) {
-      elements.push(
-        <ol
-          key={`ol-${elements.length}`}
-          className="my-2 list-decimal space-y-3 pl-5 text-[#1E293B]"
-        >
-          {orderedItems.map((item, i) => (
-            <li key={i} className="leading-relaxed">
-              <span className="block">{parseMarkdownText(item.text)}</span>
-              {item.subItems.length > 0 && (
-                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[#1E293B]">
-                  {item.subItems.map((sub, j) => (
-                    <li key={j} className="leading-relaxed">
-                      {parseMarkdownText(sub)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </li>
-          ))}
-        </ol>
-      )
-      orderedItems = []
-      inOrderedList = false
-    }
-  }
-
-  const flushAll = () => {
-    flushUnorderedList()
-    flushOrderedList()
-  }
-
-  for (const line of lines) {
-    const trimmed = line.trim()
-
-    // Code block toggle (```)
-    if (trimmed.startsWith("```")) {
-      if (inCodeBlock) {
-        // Close code block
-        elements.push(
-          <pre
-            key={`codeblock-${elements.length}`}
-            className="my-2 rounded-lg bg-[#0F172A] p-3 text-xs text-[#E2E8F0] font-mono overflow-x-auto border border-[#1E293B]"
-          >
-            <code>{codeBlockLines.join("\n")}</code>
-          </pre>
-        )
-        codeBlockLines = []
-        inCodeBlock = false
-      } else {
-        flushAll()
-        inCodeBlock = true
-      }
-      continue
-    }
-
-    if (inCodeBlock) {
-      codeBlockLines.push(line)
-      continue
-    }
-
-    // Horizontal rule: --- or ***
-    if (/^[-*_]{3,}$/.test(trimmed)) {
-      flushAll()
-      elements.push(
-        <hr key={`hr-${elements.length}`} className="my-3 border-t border-[#E2E8F0]" />
-      )
-      continue
-    }
-
-    // Headings: ### as main heading
-    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/)
-    if (headingMatch) {
-      flushAll()
-      const level = headingMatch[1].length
-      const headingText = headingMatch[2]
-      if (level === 1) {
-        elements.push(
-          <h2
-            key={`h-${elements.length}`}
-            className="text-base font-bold text-[#003366] mt-3 mb-1.5 border-b border-[#E2E8F0] pb-1"
-          >
-            {parseMarkdownText(headingText)}
-          </h2>
-        )
-      } else if (level <= 3) {
-        // ### is main heading per user requirement
-        elements.push(
-          <h3
-            key={`h-${elements.length}`}
-            className="text-[15px] font-bold text-[#003366] mt-3 mb-1"
-          >
-            {parseMarkdownText(headingText)}
-          </h3>
-        )
-      } else {
-        elements.push(
-          <h4
-            key={`h-${elements.length}`}
-            className="text-sm font-semibold text-[#1E293B] mt-2 mb-1"
-          >
-            {parseMarkdownText(headingText)}
-          </h4>
-        )
-      }
-      continue
-    }
-
-    // Ordered list items: 1. item, 2. item, etc.
-    const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/)
-    if (orderedMatch) {
-      if (inUnorderedList) flushUnorderedList()
-      inOrderedList = true
-      orderedItems.push({ text: orderedMatch[1], subItems: [] })
-      continue
-    }
-
-    // Unordered/bullet sub-items nested under an ordered item
-    if ((trimmed.startsWith("- ") || trimmed.startsWith("* ")) && inOrderedList && orderedItems.length > 0) {
-      orderedItems[orderedItems.length - 1].subItems.push(trimmed.slice(2))
-      continue
-    }
-
-    // Standalone unordered list items: - item or * item
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      if (inOrderedList) flushOrderedList()
-      inUnorderedList = true
-      unorderedListItems.push(trimmed.slice(2))
-      continue
-    }
-
-    // Empty line: don't break an ordered list — allow gaps between numbered items
-    if (trimmed === "" && inOrderedList) {
-      continue
-    }
-
-    // Non-list, non-heading line
-    flushAll()
-    if (trimmed === "") {
-      elements.push(<div key={`spacer-${elements.length}`} className="h-2" />)
-    } else {
-      elements.push(
-        <span key={`p-${elements.length}`} className="leading-relaxed block">
-          {parseMarkdownText(trimmed)}
-        </span>
-      )
-    }
-  }
-  flushAll()
-
-  return elements
 }
 
 const quickTopics = [
@@ -689,14 +518,13 @@ export function ChatBot() {
                               : "bg-white text-[#1E293B] rounded-2xl rounded-tl-sm shadow-sm border border-[#E2E8F0]"
                           }`}
                         >
-                          <div className="whitespace-pre-wrap break-words">
-                            {message.role === "user" ? (
-                              message.content
-                            ) : (
-                              <div className="space-y-1">
-                                {formatMarkdownBlock(message.content)}
-                              </div>
-                            )}
+                          <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere">
+                            {message.content.split("\n").map((line, i) => (
+                              <span key={i}>
+                                {parseMarkdownLine(line, i)}
+                                {i < message.content.split("\n").length - 1 && <br />}
+                              </span>
+                            ))}
                             {message.isTyping && message.role === "assistant" && (
                               <span className="inline-block w-0.5 h-4 bg-[#3B82F6] ml-0.5 animate-pulse" />
                             )}
