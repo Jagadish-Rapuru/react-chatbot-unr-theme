@@ -128,11 +128,16 @@ function parseMarkdownText(text: string): React.ReactNode[] {
   return parts.length > 0 ? parts : [text]
 }
 
+interface OrderedItem {
+  text: string
+  subItems: string[]
+}
+
 function formatMarkdownBlock(text: string): React.ReactNode[] {
   const lines = text.split("\n")
   const elements: React.ReactNode[] = []
   let unorderedListItems: string[] = []
-  let orderedListItems: string[] = []
+  let orderedItems: OrderedItem[] = []
   let inUnorderedList = false
   let inOrderedList = false
   let inCodeBlock = false
@@ -158,20 +163,29 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
   }
 
   const flushOrderedList = () => {
-    if (orderedListItems.length > 0) {
+    if (orderedItems.length > 0) {
       elements.push(
         <ol
           key={`ol-${elements.length}`}
-          className="my-2 list-decimal space-y-1.5 pl-5 text-[#1E293B]"
+          className="my-2 list-decimal space-y-3 pl-5 text-[#1E293B]"
         >
-          {orderedListItems.map((item, i) => (
+          {orderedItems.map((item, i) => (
             <li key={i} className="leading-relaxed">
-              {parseMarkdownText(item)}
+              <span className="block">{parseMarkdownText(item.text)}</span>
+              {item.subItems.length > 0 && (
+                <ul className="mt-1.5 list-disc space-y-1 pl-5 text-[#1E293B]">
+                  {item.subItems.map((sub, j) => (
+                    <li key={j} className="leading-relaxed">
+                      {parseMarkdownText(sub)}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ol>
       )
-      orderedListItems = []
+      orderedItems = []
       inOrderedList = false
     }
   }
@@ -262,15 +276,26 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
     if (orderedMatch) {
       if (inUnorderedList) flushUnorderedList()
       inOrderedList = true
-      orderedListItems.push(orderedMatch[1])
+      orderedItems.push({ text: orderedMatch[1], subItems: [] })
       continue
     }
 
-    // Unordered list items: - item or * item
+    // Unordered/bullet sub-items nested under an ordered item
+    if ((trimmed.startsWith("- ") || trimmed.startsWith("* ")) && inOrderedList && orderedItems.length > 0) {
+      orderedItems[orderedItems.length - 1].subItems.push(trimmed.slice(2))
+      continue
+    }
+
+    // Standalone unordered list items: - item or * item
     if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
       if (inOrderedList) flushOrderedList()
       inUnorderedList = true
       unorderedListItems.push(trimmed.slice(2))
+      continue
+    }
+
+    // Empty line: don't break an ordered list — allow gaps between numbered items
+    if (trimmed === "" && inOrderedList) {
       continue
     }
 
