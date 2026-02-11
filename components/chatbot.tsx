@@ -460,7 +460,7 @@ export function ChatBot() {
                     <div className="p-3 text-sm leading-relaxed bg-white text-[#1E293B] rounded-2xl rounded-tl-sm shadow-sm border border-[#E2E8F0]">
                       {WELCOME_MESSAGE.content}
                     </div>
-                    <p className="text-[10px] text-[#94A3B8] mt-1 px-1">
+                    <p className="text-[10px] text-[#94A3B8] mt-1 px-1" suppressHydrationWarning>
                       {mounted ? formatTime(WELCOME_MESSAGE.timestamp) : "\u00A0"}
                     </p>
                   </div>
@@ -585,7 +585,7 @@ export function ChatBot() {
                       </div>
 
                       {/* Timestamp */}
-                      <p className="text-[10px] text-[#94A3B8] mt-1 px-1">
+                      <p className="text-[10px] text-[#94A3B8] mt-1 px-1" suppressHydrationWarning>
                         {mounted ? formatTime(message.timestamp) : "\u00A0"}
                       </p>
 
