@@ -99,7 +99,9 @@ function parseMarkdownText(text: string): React.ReactNode[] {
           <ExternalLink className="w-3 h-3" />
         </a>
       )
-    } else if (match[3]) {
+    }
+
+    if (match[3]) {
       parts.push(
         <strong key={`bold-${keyIndex++}`} className="font-semibold text-[#0A1628]">
           {match[3]}
