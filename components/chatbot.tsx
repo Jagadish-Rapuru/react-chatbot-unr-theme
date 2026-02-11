@@ -76,7 +76,7 @@ function generateSessionId(): string {
 
 function parseMarkdownText(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
-  const combinedRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*/g
+  const combinedRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*|`([^`]+)`/g
   let lastIndex = 0
   let match
   let keyIndex = 0
@@ -87,6 +87,7 @@ function parseMarkdownText(text: string): React.ReactNode[] {
     }
 
     if (match[1] && match[2]) {
+      // Link: [text](url)
       parts.push(
         <a
           key={`link-${keyIndex++}`}
@@ -99,11 +100,22 @@ function parseMarkdownText(text: string): React.ReactNode[] {
           <ExternalLink className="w-3 h-3" />
         </a>
       )
-    } else     if (match[3]) {
+    } else if (match[3]) {
+      // Bold: **text** — rendered as a sub-heading
       parts.push(
         <strong key={`bold-${keyIndex++}`} className="font-bold text-[#0A1628]">
           {match[3]}
         </strong>
+      )
+    } else if (match[4]) {
+      // Inline code: `code`
+      parts.push(
+        <code
+          key={`code-${keyIndex++}`}
+          className="bg-[#F1F5F9] text-[#003366] text-xs px-1.5 py-0.5 rounded font-mono border border-[#E2E8F0]"
+        >
+          {match[4]}
+        </code>
       )
     }
     lastIndex = match.index + match[0].length
@@ -123,13 +135,15 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
   let orderedListItems: string[] = []
   let inUnorderedList = false
   let inOrderedList = false
+  let inCodeBlock = false
+  let codeBlockLines: string[] = []
 
   const flushUnorderedList = () => {
     if (unorderedListItems.length > 0) {
       elements.push(
         <ul
           key={`ul-${elements.length}`}
-          className="my-2 list-disc space-y-1 pl-5 text-[#1E293B]"
+          className="my-2 list-disc space-y-1.5 pl-5 text-[#1E293B]"
         >
           {unorderedListItems.map((item, i) => (
             <li key={i} className="leading-relaxed">
@@ -148,7 +162,7 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
       elements.push(
         <ol
           key={`ol-${elements.length}`}
-          className="my-2 list-decimal space-y-1 pl-5 text-[#1E293B]"
+          className="my-2 list-decimal space-y-1.5 pl-5 text-[#1E293B]"
         >
           {orderedListItems.map((item, i) => (
             <li key={i} className="leading-relaxed">
@@ -170,17 +184,62 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
   for (const line of lines) {
     const trimmed = line.trim()
 
+    // Code block toggle (```)
+    if (trimmed.startsWith("```")) {
+      if (inCodeBlock) {
+        // Close code block
+        elements.push(
+          <pre
+            key={`codeblock-${elements.length}`}
+            className="my-2 rounded-lg bg-[#0F172A] p-3 text-xs text-[#E2E8F0] font-mono overflow-x-auto border border-[#1E293B]"
+          >
+            <code>{codeBlockLines.join("\n")}</code>
+          </pre>
+        )
+        codeBlockLines = []
+        inCodeBlock = false
+      } else {
+        flushAll()
+        inCodeBlock = true
+      }
+      continue
+    }
+
+    if (inCodeBlock) {
+      codeBlockLines.push(line)
+      continue
+    }
+
+    // Horizontal rule: --- or ***
+    if (/^[-*_]{3,}$/.test(trimmed)) {
+      flushAll()
+      elements.push(
+        <hr key={`hr-${elements.length}`} className="my-3 border-t border-[#E2E8F0]" />
+      )
+      continue
+    }
+
     // Headings: ### as main heading
     const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/)
     if (headingMatch) {
       flushAll()
       const level = headingMatch[1].length
       const headingText = headingMatch[2]
-      if (level <= 3) {
+      if (level === 1) {
+        elements.push(
+          <h2
+            key={`h-${elements.length}`}
+            className="text-base font-bold text-[#003366] mt-3 mb-1.5 border-b border-[#E2E8F0] pb-1"
+          >
+            {parseMarkdownText(headingText)}
+          </h2>
+        )
+      } else if (level <= 3) {
+        // ### is main heading per user requirement
         elements.push(
           <h3
             key={`h-${elements.length}`}
-            className="text-base font-bold text-[#003366] mt-3 mb-1"
+            className="text-[15px] font-bold text-[#003366] mt-3 mb-1"
           >
             {parseMarkdownText(headingText)}
           </h3>
@@ -189,7 +248,7 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
         elements.push(
           <h4
             key={`h-${elements.length}`}
-            className="text-sm font-semibold text-[#0A1628] mt-2 mb-1"
+            className="text-sm font-semibold text-[#1E293B] mt-2 mb-1"
           >
             {parseMarkdownText(headingText)}
           </h4>
@@ -218,7 +277,7 @@ function formatMarkdownBlock(text: string): React.ReactNode[] {
     // Non-list, non-heading line
     flushAll()
     if (trimmed === "") {
-      elements.push(<br key={`br-${elements.length}`} />)
+      elements.push(<div key={`spacer-${elements.length}`} className="h-2" />)
     } else {
       elements.push(
         <span key={`p-${elements.length}`} className="leading-relaxed block">
