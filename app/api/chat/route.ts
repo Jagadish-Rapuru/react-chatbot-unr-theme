@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import https from "https";
 
-const API_URL = process.env.CHAT_API_URL || "https://localhost:44309/api/Chat";
+const API_URL = process.env.CHAT_API_URL || "https://unrsponsoredprojectschatbot-f3h8adcrhbg7gtdx.canadacentral-01.azurewebsites.net/api/Chat";
 
 let sessionCounter = 0;
 
