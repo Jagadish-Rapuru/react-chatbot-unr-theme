@@ -74,35 +74,8 @@ function generateSessionId(): string {
   return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`
 }
 
-function parseMarkdownLine(line: string, lineKey: number): React.ReactNode {
-  const trimmed = line.trim()
-
-  // Heading: ### as main heading
-  const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/)
-  if (headingMatch) {
-    const level = headingMatch[1].length
-    const headingText = headingMatch[2]
-    if (level <= 3) {
-      return (
-        <span key={`h-${lineKey}`} className="block text-[15px] font-bold text-[#003366] mt-2 mb-0.5">
-          {parseMarkdownText(headingText)}
-        </span>
-      )
-    }
-    return (
-      <span key={`h-${lineKey}`} className="block text-sm font-semibold text-[#1E293B] mt-1.5 mb-0.5">
-        {parseMarkdownText(headingText)}
-      </span>
-    )
-  }
-
-  // Regular line with inline markdown (bold, links)
-  return <span key={`line-${lineKey}`}>{parseMarkdownText(trimmed)}</span>
-}
-
 function parseMarkdownText(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = []
-  // Combined regex for links and bold text
   const combinedRegex = /\[([^\]]+)\]\(([^)]+)\)|\*\*([^*]+)\*\*/g
   let lastIndex = 0
   let match
@@ -114,7 +87,6 @@ function parseMarkdownText(text: string): React.ReactNode[] {
     }
 
     if (match[1] && match[2]) {
-      // It's a link [text](url)
       parts.push(
         <a
           key={`link-${keyIndex++}`}
@@ -127,8 +99,9 @@ function parseMarkdownText(text: string): React.ReactNode[] {
           <ExternalLink className="w-3 h-3" />
         </a>
       )
-    } else if (match[3]) {
-      // It's bold text **text** — sub-heading style
+    }
+
+    if (match[3]) {
       parts.push(
         <strong key={`bold-${keyIndex++}`} className="font-semibold text-[#0A1628]">
           {match[3]}
@@ -143,6 +116,54 @@ function parseMarkdownText(text: string): React.ReactNode[] {
   }
 
   return parts.length > 0 ? parts : [text]
+}
+
+function formatMarkdownBlock(text: string): React.ReactNode[] {
+  const lines = text.split("\n")
+  const elements: React.ReactNode[] = []
+  let listItems: string[] = []
+  let inList = false
+
+  const flushList = () => {
+    if (listItems.length > 0) {
+      elements.push(
+        <ul
+          key={`list-${elements.length}`}
+          className="my-2 list-disc space-y-1 pl-5 text-[#1E293B]"
+        >
+          {listItems.map((item, i) => (
+            <li key={i} className="leading-relaxed">
+              {parseMarkdownText(item)}
+            </li>
+          ))}
+        </ul>
+      )
+      listItems = []
+      inList = false
+    }
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      inList = true
+      listItems.push(trimmed.slice(2))
+    } else {
+      if (inList) flushList()
+      if (trimmed === "") {
+        elements.push(<br key={`br-${elements.length}`} />)
+      } else {
+        elements.push(
+          <span key={`p-${elements.length}`} className="leading-relaxed block">
+            {parseMarkdownText(trimmed)}
+          </span>
+        )
+      }
+    }
+  }
+  if (inList) flushList()
+
+  return elements
 }
 
 const quickTopics = [
@@ -518,13 +539,14 @@ export function ChatBot() {
                               : "bg-white text-[#1E293B] rounded-2xl rounded-tl-sm shadow-sm border border-[#E2E8F0]"
                           }`}
                         >
-                          <div className="whitespace-pre-wrap break-words overflow-wrap-anywhere">
-                            {message.content.split("\n").map((line, i) => (
-                              <span key={i}>
-                                {parseMarkdownLine(line, i)}
-                                {i < message.content.split("\n").length - 1 && <br />}
-                              </span>
-                            ))}
+                          <div className="whitespace-pre-wrap break-words">
+                            {message.role === "user" ? (
+                              message.content
+                            ) : (
+                              <div className="space-y-1">
+                                {formatMarkdownBlock(message.content)}
+                              </div>
+                            )}
                             {message.isTyping && message.role === "assistant" && (
                               <span className="inline-block w-0.5 h-4 bg-[#3B82F6] ml-0.5 animate-pulse" />
                             )}
