@@ -25,7 +25,7 @@ import {
   Lightbulb,
 } from "lucide-react"
 
-const API_URL = "/api/chat"
+const API_URL = "https://unrsponsoredprojectschatbot-f3h8adcrhbg7gtdx.canadacentral-01.azurewebsites.net/api/Chat"
 
 interface Citation {
   title: string

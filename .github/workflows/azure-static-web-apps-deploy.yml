@@ -42,7 +42,8 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: "upload"
           app_location: "/"
-          output_location: ".next"
+          output_location: "out"
+          is_static_export: true
           github_id_token: ${{ steps.idtoken.outputs.result }}
 
   close_pull_request_job:
