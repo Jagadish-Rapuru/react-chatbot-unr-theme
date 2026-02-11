@@ -99,9 +99,9 @@ function parseMarkdownText(text: string): React.ReactNode[] {
           <ExternalLink className="w-3 h-3" />
         </a>
       )
-    } else if (match[3]) {
+    } else     if (match[3]) {
       parts.push(
-        <strong key={`bold-${keyIndex++}`} className="font-semibold text-[#0A1628]">
+        <strong key={`bold-${keyIndex++}`} className="font-bold text-[#0A1628]">
           {match[3]}
         </strong>
       )
@@ -119,47 +119,115 @@ function parseMarkdownText(text: string): React.ReactNode[] {
 function formatMarkdownBlock(text: string): React.ReactNode[] {
   const lines = text.split("\n")
   const elements: React.ReactNode[] = []
-  let listItems: string[] = []
-  let inList = false
+  let unorderedListItems: string[] = []
+  let orderedListItems: string[] = []
+  let inUnorderedList = false
+  let inOrderedList = false
 
-  const flushList = () => {
-    if (listItems.length > 0) {
+  const flushUnorderedList = () => {
+    if (unorderedListItems.length > 0) {
       elements.push(
         <ul
-          key={`list-${elements.length}`}
+          key={`ul-${elements.length}`}
           className="my-2 list-disc space-y-1 pl-5 text-[#1E293B]"
         >
-          {listItems.map((item, i) => (
+          {unorderedListItems.map((item, i) => (
             <li key={i} className="leading-relaxed">
               {parseMarkdownText(item)}
             </li>
           ))}
         </ul>
       )
-      listItems = []
-      inList = false
+      unorderedListItems = []
+      inUnorderedList = false
     }
+  }
+
+  const flushOrderedList = () => {
+    if (orderedListItems.length > 0) {
+      elements.push(
+        <ol
+          key={`ol-${elements.length}`}
+          className="my-2 list-decimal space-y-1 pl-5 text-[#1E293B]"
+        >
+          {orderedListItems.map((item, i) => (
+            <li key={i} className="leading-relaxed">
+              {parseMarkdownText(item)}
+            </li>
+          ))}
+        </ol>
+      )
+      orderedListItems = []
+      inOrderedList = false
+    }
+  }
+
+  const flushAll = () => {
+    flushUnorderedList()
+    flushOrderedList()
   }
 
   for (const line of lines) {
     const trimmed = line.trim()
-    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
-      inList = true
-      listItems.push(trimmed.slice(2))
-    } else {
-      if (inList) flushList()
-      if (trimmed === "") {
-        elements.push(<br key={`br-${elements.length}`} />)
+
+    // Headings: ### as main heading
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/)
+    if (headingMatch) {
+      flushAll()
+      const level = headingMatch[1].length
+      const headingText = headingMatch[2]
+      if (level <= 3) {
+        elements.push(
+          <h3
+            key={`h-${elements.length}`}
+            className="text-base font-bold text-[#003366] mt-3 mb-1"
+          >
+            {parseMarkdownText(headingText)}
+          </h3>
+        )
       } else {
         elements.push(
-          <span key={`p-${elements.length}`} className="leading-relaxed block">
-            {parseMarkdownText(trimmed)}
-          </span>
+          <h4
+            key={`h-${elements.length}`}
+            className="text-sm font-semibold text-[#0A1628] mt-2 mb-1"
+          >
+            {parseMarkdownText(headingText)}
+          </h4>
         )
       }
+      continue
+    }
+
+    // Ordered list items: 1. item, 2. item, etc.
+    const orderedMatch = trimmed.match(/^\d+\.\s+(.+)$/)
+    if (orderedMatch) {
+      if (inUnorderedList) flushUnorderedList()
+      inOrderedList = true
+      orderedListItems.push(orderedMatch[1])
+      continue
+    }
+
+    // Unordered list items: - item or * item
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+      if (inOrderedList) flushOrderedList()
+      inUnorderedList = true
+      unorderedListItems.push(trimmed.slice(2))
+      continue
+    }
+
+    // Non-list, non-heading line
+    flushAll()
+    if (trimmed === "") {
+      elements.push(<br key={`br-${elements.length}`} />)
+    } else {
+      elements.push(
+        <span key={`p-${elements.length}`} className="leading-relaxed block">
+          {parseMarkdownText(trimmed)}
+        </span>
+      )
     }
   }
-  if (inList) flushList()
+  flushAll()
 
   return elements
 }
