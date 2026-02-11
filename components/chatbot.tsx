@@ -180,10 +180,15 @@ export function ChatBot() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const [sessionId] = useState(generateSessionId)
   const [hasInteracted, setHasInteracted] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const typingSessionRef = useRef<number>(0)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -454,7 +459,7 @@ export function ChatBot() {
                       {WELCOME_MESSAGE.content}
                     </div>
                     <p className="text-[10px] text-[#94A3B8] mt-1 px-1">
-                      {formatTime(WELCOME_MESSAGE.timestamp)}
+                      {mounted ? formatTime(WELCOME_MESSAGE.timestamp) : "\u00A0"}
                     </p>
                   </div>
                 </div>
@@ -579,7 +584,7 @@ export function ChatBot() {
 
                       {/* Timestamp */}
                       <p className="text-[10px] text-[#94A3B8] mt-1 px-1">
-                        {formatTime(message.timestamp)}
+                        {mounted ? formatTime(message.timestamp) : "\u00A0"}
                       </p>
 
                       {/* Citations */}
